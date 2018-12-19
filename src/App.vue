@@ -7,7 +7,7 @@
       <v-spacer></v-spacer>
       <v-btn
         flat
-        href="https://github.com/vuetifyjs/vuetify/releases/latest"
+        href="https://github.com/slime7/kancolle-battle-chart"
         target="_blank"
       >
         <span class="mr-2">Github</span>

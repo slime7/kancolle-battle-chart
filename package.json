@@ -1,6 +1,6 @@
 {
   "name": "kancolle-battle-chart",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "author": {
     "name": "Slime7",
     "url": "https://github.com/slime7"
@@ -8,7 +8,7 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "ghpages":  "gh-pages -d dist -n",
+    "build-gh": "vue-cli-service build --mode ghpages && gh-pages-clean && gh-pages -d dist",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {

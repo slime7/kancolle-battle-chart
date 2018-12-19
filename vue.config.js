@@ -5,4 +5,5 @@ module.exports = {
       extensions: ['.js', '.vue', '.json'],
     },
   },
+  baseUrl: process.env.ghbaseurl || '/',
 };
