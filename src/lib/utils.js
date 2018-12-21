@@ -59,7 +59,10 @@ export const timeFormat = (time, format = 'shortdate') => {
   let ret;
   switch (format) {
     case 'hour':
-      ret = `${hh}:00-${fix2(d.getHours() + 1)}:00`;
+      ret = `${hh}:00-${hh}:59`;
+      break;
+    case 'hourarray':
+      ret = [+hh, +mm, +ss];
       break;
     case 'shorttime':
     case 'time':

@@ -8,9 +8,37 @@
         {{ result.date ? timeFormat(result.date[1]) : '' }}
       </v-flex>
       <v-flex>Total: {{ battleData.length }}</v-flex>
-      <v-flex>Rank: {{ result.rank }}</v-flex>
+      <v-flex class="v-gap">
+        <v-layout row>
+          <v-spacer></v-spacer>
+          <div class="chart-frame elevation-5">
+            <h3>战斗结果</h3>
+            <GChart
+              :settings="{ packages: ['corechart'] }"
+              type="PieChart"
+              :data="result.rankChartData.table"
+              :options="result.rankChartData.options"
+            />
+          </div>
+          <v-spacer></v-spacer>
+        </v-layout>
+      </v-flex>
+      <v-flex class="v-gap">
+        <v-layout row>
+          <v-spacer></v-spacer>
+          <div class="chart-frame full-width elevation-5">
+            <h3>战斗时段</h3>
+            <GChart
+              :settings="{ packages: ['corechart'] }"
+              type="ColumnChart"
+              :data="result.hourChartData.table"
+              :options="result.hourChartData.options"
+            />
+          </div>
+          <v-spacer></v-spacer>
+        </v-layout>
+      </v-flex>
       <v-flex>Map: {{ result.map }}</v-flex>
-      <v-flex>Hour: {{ result.hour }}</v-flex>
       <v-flex>Ship: {{ result.ship }}</v-flex>
       <v-flex>Get: {{ result.get }}</v-flex>
     </v-layout>
@@ -19,15 +47,21 @@
 
 <script>
 import { mapState } from 'vuex';
+import { GChart } from 'vue-google-charts';
 import { sortResult, timeFormat, dbg } from '@/lib/utils';
 import ships from '@/assets/ships.json';
 
 export default {
   name: 'Result',
 
+  components: {
+    GChart,
+  },
+
   data() {
     return {
       ships,
+      hourtemp: [],
     };
   },
 
@@ -37,7 +71,7 @@ export default {
         date: null,
         rank: {},
         map: [],
-        hour: {},
+        hour: this.hourtemp,
         ship: [],
         get: {},
       };
@@ -71,8 +105,12 @@ export default {
         self.pushResult(result.map, maptmp);
 
         // 战斗时段
-        const tp = timeFormat(time, 'hour');
-        self.addResult(result.hour, tp);
+        const hourtmp = {
+          key: timeFormat(time, 'hour'),
+          count: 1,
+          hour: timeFormat(time, 'hourarray'),
+        };
+        self.pushResult(result.hour, hourtmp);
 
         // 战斗舰娘
         let fleetCombine;
@@ -107,8 +145,10 @@ export default {
       });
 
       result.rank = self.sortResult(result.rank);
+      result.rankChartData = self.rankDataSet(result.rank);
       result.map = result.map.sort((a, b) => a.map[0] * 10 + a.map[1] - b.map[0] * 10 - b.map[1]);
-      result.hour = self.sortResult(result.hour);
+      result.hour = result.hour.sort((a, b) => a.hour[0] - b.hour[0]);
+      result.hourChartData = self.hourDataSet(result.hour);
       result.ship = result.ship.sort((a, b) => b.count - a.count);
       result.get = self.sortResult(result.get, (a, b, obj) => obj[b] - obj[a]);
       return result;
@@ -144,12 +184,79 @@ export default {
         target.push(value);
       }
     },
+    init() {
+      // reset hour temp
+      this.hourtemp = [];
+      for (let i = 0; i < 24; i += 1) {
+        this.hourtemp.push({
+          key: timeFormat(new Date(`2018-01-01 ${i}:00`), 'hour'),
+          count: 0,
+          hour: [i, 0, 0],
+        });
+      }
+    },
+    rankDataSet(rank) {
+      const data = {
+        table: [],
+        options: {
+          pieHole: 0.4,
+          pieSliceText: 'value',
+        },
+      };
+      const ranks = Object.keys(rank);
+      data.table.push(['rank', 'count']);
+      ranks.forEach((r) => {
+        data.table.push([r, rank[r]]);
+      });
+      return data;
+    },
+    hourDataSet(hour) {
+      const data = {
+        table: [],
+        options: {
+          hAxis: {
+            slantedText: true,
+            slantedTextAngle: 60,
+            maxTextLines: 2,
+          },
+          vAxis: {
+            title: '次数',
+          },
+          height: 240,
+          legend: {
+            position: 'none',
+          },
+        },
+      };
+      data.table.push(['hour', 'count']);
+      hour.forEach((h) => {
+        data.table.push([h.key.split('-')[0], h.count]);
+      });
+      return data;
+    },
     sortResult,
     timeFormat,
+  },
+
+  mounted() {
+    this.init();
   },
 };
 </script>
 
-<style scoped>
+<style lang="less" scoped>
+  .chart-frame {
+    background-color: #fff;
+    padding: 8px;
+    min-width: 360px;
+    max-width: 100%;
 
+    &.full-width {
+      width: 100%;
+    }
+  }
+
+  .v-gap + .v-gap {
+    margin-top: 16px;
+  }
 </style>
