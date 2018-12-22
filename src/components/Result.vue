@@ -2,45 +2,90 @@
   <v-container>
     <v-layout column>
       <v-flex>
-        Date:
-        {{ result.date ? timeFormat(result.date[0]) : '' }}
-        =>
-        {{ result.date ? timeFormat(result.date[1]) : '' }}
+        <p>数据范围从
+          <strong>{{result.date ? timeFormat(result.date[0]) : ''}}</strong>
+          到
+          <strong>{{result.date ? timeFormat(result.date[1]) : ''}}</strong>
+        </p>
+        <p>共 <em>{{battleData.length}}</em> 场战斗</p>
       </v-flex>
-      <v-flex>Total: {{ battleData.length }}</v-flex>
-      <v-flex class="v-gap">
+      <v-flex class="v-gap" v-if="chart.rank && chart.rank.table.length > 2">
         <v-layout row>
           <v-spacer></v-spacer>
-          <div class="chart-frame elevation-5">
+          <div class="chart-frame small-width elevation-5">
             <h3>战斗结果</h3>
             <GChart
               :settings="{ packages: ['corechart'] }"
               type="PieChart"
-              :data="result.rankChartData.table"
-              :options="result.rankChartData.options"
+              :data="chart.rank.table"
+              :options="chart.rank.options"
             />
           </div>
           <v-spacer></v-spacer>
         </v-layout>
       </v-flex>
-      <v-flex class="v-gap">
+      <v-flex class="v-gap" v-if="chart.hour">
         <v-layout row>
-          <v-spacer></v-spacer>
           <div class="chart-frame full-width elevation-5">
             <h3>战斗时段</h3>
             <GChart
               :settings="{ packages: ['corechart'] }"
               type="ColumnChart"
-              :data="result.hourChartData.table"
-              :options="result.hourChartData.options"
+              :data="chart.hour.table"
+              :options="chart.hour.options"
             />
           </div>
-          <v-spacer></v-spacer>
         </v-layout>
       </v-flex>
-      <v-flex>Map: {{ result.map }}</v-flex>
-      <v-flex>Ship: {{ result.ship }}</v-flex>
-      <v-flex>Get: {{ result.get }}</v-flex>
+      <v-flex class="v-gap" v-if="chart.mapRegular && chart.mapRegular.table.length > 2">
+        <v-layout row>
+          <div class="chart-frame full-width elevation-5">
+            <h3>常规图战斗次数</h3>
+            <GChart
+              :settings="{ packages: ['corechart'] }"
+              type="ColumnChart"
+              :data="chart.mapRegular.table"
+            />
+          </div>
+        </v-layout>
+      </v-flex>
+      <v-flex class="v-gap" v-if="chart.mapEvent && chart.mapEvent.table.length > 2">
+        <v-layout row>
+          <div class="chart-frame full-width elevation-5">
+            <h3>活动图战斗次数</h3>
+            <GChart
+              :settings="{ packages: ['corechart'] }"
+              type="ColumnChart"
+              :data="chart.mapEvent.table"
+            />
+          </div>
+        </v-layout>
+      </v-flex>
+      <v-flex
+        class="v-gap"
+        v-if="chart.ship && chart.get && chart.ship.table.length > 2 && chart.get.table.length > 2"
+      >
+        <v-layout align-center justify-space-around row wrap>
+          <div class="chart-frame elevation-5">
+            <h3>出击舰娘</h3>
+            <GChart
+              :settings="{ packages: ['table'] }"
+              type="Table"
+              :data="chart.ship.table"
+              :options="chart.ship.options"
+            />
+          </div>
+          <div class="chart-frame elevation-5">
+            <h3>获取舰娘</h3>
+            <GChart
+              :settings="{ packages: ['table'] }"
+              type="Table"
+              :data="chart.get.table"
+              :options="chart.get.options"
+            />
+          </div>
+        </v-layout>
+      </v-flex>
     </v-layout>
   </v-container>
 </template>
@@ -62,6 +107,7 @@ export default {
     return {
       ships,
       hourtemp: [],
+      chart: {},
     };
   },
 
@@ -71,7 +117,7 @@ export default {
         date: null,
         rank: {},
         map: [],
-        hour: this.hourtemp,
+        hour: JSON.parse(JSON.stringify(this.hourtemp)),
         ship: [],
         get: {},
       };
@@ -100,7 +146,7 @@ export default {
         const maptmp = {
           key: battle.map === '' ? '演习' : battle.map,
           count: 1,
-          map: battle.map === '' ? [99, 9] : [map[0], map[1]],
+          map: battle.map === '' ? [21, 1] : [map[0], map[1]],
         };
         self.pushResult(result.map, maptmp);
 
@@ -132,6 +178,8 @@ export default {
                 key: `${ship.api_id}-${ship.api_ship_id}`,
                 count: 1,
                 ship: (findShip ? findShip.name : ship.api_ship_id),
+                shipId: ship.api_ship_id,
+                shipGetId: ship.api_id,
               };
               self.pushResult(result.ship, shiptmp);
             }
@@ -145,12 +193,15 @@ export default {
       });
 
       result.rank = self.sortResult(result.rank);
-      result.rankChartData = self.rankDataSet(result.rank);
+      self.rankDataSet(result.rank);
       result.map = result.map.sort((a, b) => a.map[0] * 10 + a.map[1] - b.map[0] * 10 - b.map[1]);
+      self.mapDataSet(result.map);
       result.hour = result.hour.sort((a, b) => a.hour[0] - b.hour[0]);
-      result.hourChartData = self.hourDataSet(result.hour);
+      self.hourDataSet(result.hour);
       result.ship = result.ship.sort((a, b) => b.count - a.count);
+      self.shipDataSet(result.ship);
       result.get = self.sortResult(result.get, (a, b, obj) => obj[b] - obj[a]);
+      self.getDataSet(result.get);
       return result;
     },
     ...mapState(['battleData']),
@@ -208,7 +259,7 @@ export default {
       ranks.forEach((r) => {
         data.table.push([r, rank[r]]);
       });
-      return data;
+      this.chart.rank = data;
     },
     hourDataSet(hour) {
       const data = {
@@ -228,11 +279,62 @@ export default {
           },
         },
       };
-      data.table.push(['hour', 'count']);
+      data.table.push(['时段', '次数']);
       hour.forEach((h) => {
         data.table.push([h.key.split('-')[0], h.count]);
       });
-      return data;
+      this.chart.hour = data;
+    },
+    mapDataSet(map) {
+      const data1 = {
+        table: [],
+      };
+      const data2 = {
+        table: [],
+      };
+      data1.table.push(['海图', '次数']);
+      data2.table.push(['海图', '次数']);
+      map.forEach((m) => {
+        if (m.map[0] < 22) {
+          data1.table.push([m.key, m.count]);
+        } else {
+          data2.table.push([m.key, m.count]);
+        }
+      });
+      this.chart.mapRegular = data1;
+      this.chart.mapEvent = data2;
+    },
+    shipDataSet(ship) {
+      const data = {
+        table: [],
+        options: {
+          page: 'enable',
+          pageSize: 20,
+          showRowNumber: true,
+          sort: false,
+        },
+      };
+      data.table.push(['出击舰娘', '舰娘ID', '次数']);
+      ship.forEach((s) => {
+        data.table.push([s.ship, s.shipGetId, s.count]);
+      });
+      this.chart.ship = data;
+    },
+    getDataSet(ship) {
+      const data = {
+        table: [],
+        options: {
+          page: 'enable',
+          pageSize: 20,
+          showRowNumber: true,
+          sort: false,
+        },
+      };
+      data.table.push(['获取舰娘', '次数']);
+      Object.keys(ship).forEach((s) => {
+        data.table.push([s, ship[s]]);
+      });
+      this.chart.get = data;
     },
     sortResult,
     timeFormat,
@@ -248,11 +350,14 @@ export default {
   .chart-frame {
     background-color: #fff;
     padding: 8px;
-    min-width: 360px;
     max-width: 100%;
 
     &.full-width {
       width: 100%;
+    }
+
+    &.small-width {
+      min-width: 360px;
     }
   }
 
