@@ -7,12 +7,16 @@
           到
           <strong>{{result.date ? timeFormat(result.date[1]) : ''}}</strong>
         </p>
-        <p>共 <em>{{battleData.length}}</em> 场战斗</p>
+        <p>共
+          <em>{{battleData.length}}</em>
+          场战斗，击沉
+          <em>{{result.destroy}}</em>
+          深海
+        </p>
       </v-flex>
       <v-flex class="v-gap" v-if="chart.rank && chart.rank.table.length > 2">
         <v-layout row>
-          <v-spacer></v-spacer>
-          <div class="chart-frame small-width elevation-5">
+          <div class="chart-frame half-width h-gap elevation-5">
             <h3>战斗结果</h3>
             <GChart
               :settings="{ packages: ['corechart'] }"
@@ -21,7 +25,16 @@
               :options="chart.rank.options"
             />
           </div>
-          <v-spacer></v-spacer>
+          <div></div>
+          <div class="chart-frame half-width elevation-5">
+            <h3>战斗航向</h3>
+            <GChart
+              :settings="{ packages: ['corechart'] }"
+              type="PieChart"
+              :data="chart.formation.table"
+              :options="chart.formation.options"
+            />
+          </div>
         </v-layout>
       </v-flex>
       <v-flex class="v-gap" v-if="chart.hour">
@@ -76,7 +89,7 @@
             />
           </div>
           <div class="chart-frame elevation-5">
-            <h3>获取舰娘</h3>
+            <h3>邂逅舰娘</h3>
             <GChart
               :settings="{ packages: ['table'] }"
               type="Table"
@@ -114,12 +127,14 @@ export default {
   computed: {
     result() {
       const result = {
-        date: null,
-        rank: {},
-        map: [],
-        hour: JSON.parse(JSON.stringify(this.hourtemp)),
-        ship: [],
-        get: {},
+        date: null, // 战斗日期区间
+        rank: {}, // 战斗结果
+        map: [], // 战斗海域
+        hour: JSON.parse(JSON.stringify(this.hourtemp)), // 战斗时段
+        ship: [], // 战斗舰娘
+        get: {}, // 邂逅舰娘
+        destroy: 0, // 击沉深海
+        formation: [0, 0, 0, 0], // 战斗航向
       };
       const self = this;
       dbg.log('无数据战斗点: ', self.battleData.filter(d => !d.data));
@@ -130,6 +145,7 @@ export default {
           map,
           packet,
         } = JSON.parse(battle.data);
+        const battleResult = packet[packet.length - 1];
         // 战斗日期
         if (!result.date) {
           result.date = [time, time];
@@ -186,9 +202,19 @@ export default {
           });
         }
 
-        // 获取
-        if (packet[1] && packet[1].api_get_ship) {
-          self.addResult(result.get, packet[1].api_get_ship.api_ship_name);
+        // 邂逅舰娘
+        if (battleResult && battleResult.api_get_ship) {
+          self.addResult(result.get, battleResult.api_get_ship.api_ship_name);
+        }
+
+        // 击沉深海
+        if (battleResult && typeof battleResult.api_dests === 'number') {
+          result.destroy += battleResult.api_dests;
+        }
+
+        // 战斗航向
+        if (packet[0]) {
+          result.formation[packet[0].api_formation[2] - 1] += 1;
         }
       });
 
@@ -202,6 +228,7 @@ export default {
       self.shipDataSet(result.ship);
       result.get = self.sortResult(result.get, (a, b, obj) => obj[b] - obj[a]);
       self.getDataSet(result.get);
+      self.formationDataSet(result.formation);
       return result;
     },
     ...mapState(['battleData']),
@@ -260,6 +287,23 @@ export default {
         data.table.push([r, rank[r]]);
       });
       this.chart.rank = data;
+    },
+    formationDataSet(formation) {
+      const data = {
+        table: [],
+        options: {
+          pieHole: 0.4,
+          pieSliceText: 'value',
+        },
+      };
+      data.table = [
+        ['航向', '次数'],
+        ['同航戦', formation[0]],
+        ['反航戦', formation[1]],
+        ['T字有利', formation[2]],
+        ['T字不利', formation[3]],
+      ];
+      this.chart.formation = data;
     },
     hourDataSet(hour) {
       const data = {
@@ -359,6 +403,14 @@ export default {
     &.small-width {
       min-width: 360px;
     }
+
+    &.half-width {
+      width: calc(50% - 8px);
+    }
+  }
+
+  .h-gap + * {
+    width: 16px;
   }
 
   .v-gap + .v-gap {
