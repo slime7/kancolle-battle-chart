@@ -213,7 +213,7 @@ export default {
         }
 
         // 战斗航向
-        if (packet[0]) {
+        if (packet[0] && packet[0].api_formation) {
           result.formation[packet[0].api_formation[2] - 1] += 1;
         }
       });
