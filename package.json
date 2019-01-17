@@ -8,7 +8,7 @@
   "scripts": {
     "serve": "vue-cli-service serve",
     "build": "vue-cli-service build",
-    "build-gh": "vue-cli-service build --mode ghpages && gh-pages-clean && gh-pages -d dist",
+    "build-gh": "vue-cli-service build --mode ghpages && node node_modules/gh-pages/bin/gh-pages-clean && node node_modules/gh-pages/bin/gh-pages -d dist",
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
@@ -19,9 +19,9 @@
     "zlibjs": "^0.3.1"
   },
   "devDependencies": {
-    "@vue/cli-plugin-babel": "^3.2.0",
-    "@vue/cli-plugin-eslint": "^3.2.0",
-    "@vue/cli-service": "^3.2.0",
+    "@vue/cli-plugin-babel": "^3.3.0",
+    "@vue/cli-plugin-eslint": "^3.3.0",
+    "@vue/cli-service": "^3.3.0",
     "@vue/eslint-config-airbnb": "^4.0.0",
     "babel-eslint": "^10.0.1",
     "eslint": "^5.8.0",
